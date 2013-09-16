@@ -1,0 +1,4 @@
+name = OAuth 3-legged client
+description = Implements the client of OAuth in 3-legged model.
+core = 7.x
+files[] = oauth_3_legged_client.module
