@@ -17,8 +17,8 @@ define('OAUTH3LEGGED_CLIENT_REQUEST_TOKEN_TYPE', 1);
 function oauth3legged_client_menu() {
   $items = array();
 
-  // Put your menu items here.
-  $items['oauthclient/oauth'] = array(
+  // Your mobile application can start from calling this menu
+  $items['oauth3legged_client/oauthstart'] = array(
     'title' => 'Oauth client',
     'page callback' => 'oauthclient_3legged_oauth',
     'page arguments' => array(2,3), //2 should be uid, 3 should be udid
@@ -27,16 +27,16 @@ function oauth3legged_client_menu() {
   );
 
   $items['admin/config/services/oauth3legged_client'] = array(
-    'title' => 'Mobingi Consumer Configuration',
+    'title' => 'Oauth provider Consumer Configuration',
     'page callback' => 'drupal_get_form',
     'page arguments' => array('oauth3legged_client_admin'),
-    'access arguments' => array('administer mobingi consumer.'),
+    'access arguments' => array('administer Oauth provider consumer.'),
     'file' => 'oauth3legged_client.admin.inc',
     'type' => MENU_NORMAL_ITEM,
   );
 
   $items['admin/config/services/oauth3legged_client/settings'] = array(
-    'title' => 'Mobingi Consumer Configuration',
+    'title' => 'Oauth provider Consumer Configuration',
     'type' => MENU_DEFAULT_LOCAL_TASK,
     'weight' => 0,
   );
@@ -44,7 +44,7 @@ function oauth3legged_client_menu() {
   $items['admin/config/services/oauth3legged_client/example'] = array(
     'title' => 'Example',
     'page arguments' => array('oauth3legged_client_example'),
-    'access arguments' => array('administer mobingi consumer.'),
+    'access arguments' => array('administer Oauth provider consumer.'),
     'type' => MENU_LOCAL_TASK,
     'weight' => 1,
   );
@@ -52,7 +52,7 @@ function oauth3legged_client_menu() {
   $items['admin/config/services/oauth3legged_client/example/create_user'] = array(
     'title' => 'Create user',
     'page callback' => 'oauth3legged_client_create_user',
-    'access arguments' => array('mobingi create user'),
+    'access arguments' => array('Oauth provider create user'),
     'type' => MENU_CALLBACK,
   );
 
@@ -65,12 +65,12 @@ function oauth3legged_client_menu() {
 function oauth3legged_client_permission() {
   return array(
     'administer oauth3legged_client module' => array(
-        'title' => t('Administer Mobingi Consumer'),
+        'title' => t('Administer Oauth provider Consumer'),
         'description' => t('Configuration for App Key and App Secret.'),
       ),
-    'mobingi create user' => array(
-        'title' => t('Create Mobingi user'),
-        'description' => t('Remotely create Mobingi user.'),
+    'Oauth provider create user' => array(
+        'title' => t('Create Oauth provider user'),
+        'description' => t('Remotely create Oauth provider user.'),
       ),
   );
 }
@@ -84,7 +84,7 @@ function oauthclient_access($uid, $udid) {
   if ($uid > 0)
     return TRUE;
 
-  //Only using in mobingi, should have other non-password security measure
+  //Only using in Oauth provider, should have other non-password security measure
   if ($uid == 'authenticated' && $udid == 'token')
     return TRUE;
   else 
@@ -92,7 +92,7 @@ function oauthclient_access($uid, $udid) {
 }
 
 /**
- * Create Mobingi user.
+ * Create user at provider server example.
  *
  * @param $external_id is UDID in our case.
  * @return An array of token key and secret
@@ -167,23 +167,21 @@ function oauthclient_3legged_oauth($uid, $external_id = NULL) {
   $oauth = new OAuth($consumer_key, $consumer_secret, OAUTH_SIG_METHOD_HMACSHA1, OAUTH_AUTH_TYPE_URI);
   $oauth->enableDebug(); // let you know when and why some request fails
 
-  $user = user_load($uid);
-  $user_wrapper = entity_metadata_wrapper('user', $user);
-  if (empty($user->{$settings['fields']['token_secret']})) {
+  if (empty($_SESSION['request_token_secret'])) {
     $request_token_array = $oauth->getRequestToken($request_token_url);
-    $user->{$settings['fields']['token_key']}->set($request_token_array['oauth_token']);
-    $user->{$settings['fields']['token_secret']}->set($request_token_array['oauth_token_secret']);
-    $user->save();
+    $_SESSION['request_token'] = $request_token_array['oauth_token'];
+    $_SESSION['request_token_secret'] = $request_token_array['oauth_token_secret'];
 
     // mapping ids with request token
-    $ids = array (
-      'uid' => $uid,
-      'udid' => $udid,
-    );
-    variable_set($_SESSION['request_token'], $ids);
+    $user = user_load($uid);
+    $user_wrapper = entity_metadata_wrapper('user', $user);
+    $user->{$settings['fields']['token_key']}->set($_SESSION['request_token']);
+    $user->{$settings['fields']['token_secret']}->set($_SESSION['request_token_secret']);
+    $user->{$settings['fields']['token_type']}->set(OAUTH3LEGGED_CLIENT_REQUEST_TOKEN_TYPE);
 
     // takes you to Drupal authorize page
     drupal_goto($authorize_url.'?oauth_token='.$_SESSION['request_token']);
+
   } else if (empty($_SESSION['access_token'])) { // continues below
     // PHP still needs the request token/secret to get the access token and secret
     $request_token_secret = $_SESSION['request_token_secret']; 
@@ -194,7 +192,6 @@ function oauthclient_3legged_oauth($uid, $external_id = NULL) {
     $_SESSION['access_token_secret']= $access_token_info['oauth_token_secret'];
   }
 
-  /*
   if (isset ($_SESSION['access_token'])) {
     //Set access_token and consume service
     $access_token = $_SESSION['access_token'];
@@ -204,14 +201,30 @@ function oauthclient_3legged_oauth($uid, $external_id = NULL) {
         'access_token' => $access_token,
         'access_token_secret' => $access_token_secret,
         );
+    //You can consume Oauth provider resource here
+    //$data = $oauth->fetch($resource_url,null,OAUTH_HTTP_METHOD_GET,$req_header);
+
     //Mapping request token with ids
-    $ids_to_load = variable_get($_SESSION['request_token']);
-    $uid_to_load = $ids_to_load['uid'];
-    $udid_to_load = $ids_to_load['udid'];
-    //To-DO save the access token to user profile, after logged in with 2legged
-    if ($user = user_load($uid_to_load) )
-      variable_set($user->uid.'_'.$udid_to_load.'_oauthsecret', $access_token_array);
-    print_r($access_token_array);
+    
+    //Get the settings value.
+    $settings = variable_get('oauth3legged_client', _oauth3legged_client_default());
+
+    $query = new EntityFieldQuery();
+    $query->entityCondition('entity_type', 'user')
+      ->fieldCondition($settings['fields']['token_key'], 'value', $_SESSION['request_token'], '=');
+    $results = $query->execute();
+
+    //Save access token in user profile
+    $users = user_load_mutiple(array_keys($results['user']));
+    foreach($users as $user) {
+        $wrapper = entity_metadata_wrapper('user', $account);
+        $user->{$settings['fields']['token_key']}->set($_SESSION['access_token']);
+        $user->{$settings['fields']['token_secret']}->set($_SESSION['access_token_secret']);
+        $user->{$settings['fields']['token_type']}->set(OAUTH3LEGGED_CLIENT_ACCESS_TOKEN_TYPE);
+
+        //Debug
+        print_r($user);
+    }
     drupal_set_message('Saving access_token ok!');
 
     // For ios: Execute DIOS schema
@@ -223,29 +236,7 @@ function oauthclient_3legged_oauth($uid, $external_id = NULL) {
       'Accept'=>"application/json",
       'format'=>"json"
     );
-
-    //With access_token, you can consume all enabled resource, here just a demo
-    $resource_url = 'http://dev-oapi.mobingi.com/mobi/rest/node/1.json';
-    //Consume web service
-    try {
-      $data = $oauth->fetch($resource_url,null,OAUTH_HTTP_METHOD_GET,$req_header);
-
-      if ($data) {
-        $response_info = $oauth->getLastResponse();
-        return "Your access_token is saved, you can now use it to consume web services";
-      } else {
-        return "Get access_token failed";
-      }
-    }
-    catch(Exception $e) {
-      //echo $e->getCode(); // 401
-      // Message generated by OAuth class
-      echo $e->getMessage(); // Invalid auth/bad request (got a 401, expected HTTP/1.1 20X or a redirect)
-      // Message returned
-      echo $e->lastResponse; // {"errors":[{"message":"Could not authenticate you","code":32}]}
-    }
   }
-   */
 }
 
 //Helper function to convery current url to dios:
@@ -258,6 +249,5 @@ function convertCurrentURL() {
  } else {
   $pageURL .= $_SERVER["SERVER_NAME"].$_SERVER["REQUEST_URI"];
  }
-
   return str_replace("http://", "dios://", $pageURL);
 }
