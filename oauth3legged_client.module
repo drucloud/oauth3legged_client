@@ -123,6 +123,8 @@ function oauth3legged_client_create_user($name, $pass, $mail, $external_id = NUL
 
 /**
  * Default settings value.
+ *
+ * @return An array of default value.
  */
 function _oauth3legged_client_default() {
   return array(
@@ -175,10 +177,10 @@ function oauthclient_3legged_oauth($uid, $external_id = NULL) {
     // mapping ids with request token
     $user = user_load($uid);
     $user_wrapper = entity_metadata_wrapper('user', $user);
-    $user->{$settings['fields']['token_key']}->set($_SESSION['request_token']);
-    $user->{$settings['fields']['token_secret']}->set($_SESSION['request_token_secret']);
-    $user->{$settings['fields']['token_type']}->set(OAUTH3LEGGED_CLIENT_REQUEST_TOKEN_TYPE);
-
+    $user_wrapper->{$settings['fields']['token_key']}->set($_SESSION['request_token']);
+    $user_wrapper->{$settings['fields']['token_secret']}->set($_SESSION['request_token_secret']);
+    $user_wrapper->{$settings['fields']['token_type']}->set(OAUTH3LEGGED_CLIENT_REQUEST_TOKEN_TYPE);
+    $user_wrapper->save();
     // takes you to Drupal authorize page
     drupal_goto($authorize_url.'?oauth_token='.$_SESSION['request_token']);
 
@@ -205,7 +207,7 @@ function oauthclient_3legged_oauth($uid, $external_id = NULL) {
     //$data = $oauth->fetch($resource_url,null,OAUTH_HTTP_METHOD_GET,$req_header);
 
     //Mapping request token with ids
-    
+
     //Get the settings value.
     $settings = variable_get('oauth3legged_client', _oauth3legged_client_default());
 
@@ -215,20 +217,20 @@ function oauthclient_3legged_oauth($uid, $external_id = NULL) {
     $results = $query->execute();
 
     //Save access token in user profile
-    $users = user_load_mutiple(array_keys($results['user']));
+    $users = user_load_multiple(array_keys($results['user']));
     foreach($users as $user) {
-        $wrapper = entity_metadata_wrapper('user', $account);
-        $user->{$settings['fields']['token_key']}->set($_SESSION['access_token']);
-        $user->{$settings['fields']['token_secret']}->set($_SESSION['access_token_secret']);
-        $user->{$settings['fields']['token_type']}->set(OAUTH3LEGGED_CLIENT_ACCESS_TOKEN_TYPE);
-
-        //Debug
-        print_r($user);
+      $wrapper = entity_metadata_wrapper('user', $user);
+      $wrapper->{$settings['fields']['token_key']}->set($_SESSION['access_token']);
+      $wrapper->{$settings['fields']['token_secret']}->set($_SESSION['access_token_secret']);
+      $wrapper->{$settings['fields']['token_type']}->set(OAUTH3LEGGED_CLIENT_ACCESS_TOKEN_TYPE);
+      $wrapper->save();
+      // Debug
+      print_r($user);
     }
     drupal_set_message('Saving access_token ok!');
 
-    // For ios: Execute DIOS schema
-    $dios = convertCurrentURL();
+    // For IOS: Execute DIOS schema
+    $dios = oauth3legged_client_convert_url();
     drupal_set_message($dios);
     header("Location: ".$dios."success_dios");
     //Verify the tokens
@@ -239,15 +241,29 @@ function oauthclient_3legged_oauth($uid, $external_id = NULL) {
   }
 }
 
-//Helper function to convery current url to dios:
-function convertCurrentURL() {
- $pageURL = 'http';
- if ($_SERVER["HTTPS"] == "on") {$pageURL .= "s";}
- $pageURL .= "://";
- if ($_SERVER["SERVER_PORT"] != "80") {
-  $pageURL .= $_SERVER["SERVER_NAME"].":".$_SERVER["SERVER_PORT"].$_SERVER["REQUEST_URI"];
- } else {
-  $pageURL .= $_SERVER["SERVER_NAME"].$_SERVER["REQUEST_URI"];
- }
+/**
+ * API function: get access token and secret
+ *
+ * @param $uid
+ *    User ID.
+ * @return An array with following key.
+ *    - access_token OAuth access token.
+ *    - access_token_secret OAuth access token secret.
+ */
+function oauth3legged_client_get_access($uid) {
+}
+
+/**
+ * Helper function to convery current url to dios:
+ */
+function oauth3legged_client_convert_url() {
+  $pageURL = 'http';
+  if ($_SERVER["HTTPS"] == "on") {$pageURL .= "s";}
+    $pageURL .= "://";
+  if ($_SERVER["SERVER_PORT"] != "80") {
+    $pageURL .= $_SERVER["SERVER_NAME"].":".$_SERVER["SERVER_PORT"].$_SERVER["REQUEST_URI"];
+  } else {
+    $pageURL .= $_SERVER["SERVER_NAME"].$_SERVER["REQUEST_URI"];
+  }
   return str_replace("http://", "dios://", $pageURL);
 }
