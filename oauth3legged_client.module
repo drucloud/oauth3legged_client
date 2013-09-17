@@ -1,6 +1,17 @@
 <?php
 
 /**
+ * ACCESS TOKEN TYPE
+ */
+define('OAUTH3LEGGED_CLIENT_ACCESS_TOKEN_TYPE', 0);
+
+/**
+ * REQUEST TOKEN TYPE
+ */
+define('OAUTH3LEGGED_CLIENT_REQUEST_TOKEN_TYPE', 1);
+
+
+/**
  * Implements hook_menu().
  */
 function oauth3legged_client_menu() {
@@ -53,7 +64,7 @@ function oauth3legged_client_menu() {
  */
 function oauth3legged_client_permission() {
   return array(
-    'administer mobingi consumer' => array(
+    'administer oauth3legged_client module' => array(
         'title' => t('Administer Mobingi Consumer'),
         'description' => t('Configuration for App Key and App Secret.'),
       ),
@@ -69,7 +80,6 @@ function oauth3legged_client_permission() {
  * @return true if user / udid found in database
  */
 function oauthclient_access($uid, $udid) {
-
   // TO-Do Denied user if the UDID & uid not found in database
   if ($uid > 0)
     return TRUE;
@@ -122,7 +132,7 @@ function _oauth3legged_client_default() {
       'token_type' => '',
     ),
     'provider' => array(
-      'url' => 'http://server.mobingi.com',
+      'url' => '',
       'endpoint' => '',
       'consumer_key' => '',
       'consumer_secret' => '',
@@ -134,42 +144,46 @@ function _oauth3legged_client_default() {
  * Helper function for calling oauth server.
  * Require sending uid from client 
  *
- * @udid is optional for mobile device
- * @uid is required
- *
+ * @param $uid
+ *    (required) User ID.
+ * @param $external_id
+ *    (optional) External ID, i.e. udid.
  */
-function oauthclient_3legged_oauth($uid, $udid) {
+function oauthclient_3legged_oauth($uid, $external_id = NULL) {
+  // get the settings value.
+  $settings = variable_get('oauth3legged_client', _oauth3legged_client_default());
 
-  $oauth_provider_url = variable_get('oauthclient_provider_url');
-
+  // build urls.
+  $oauth_provider_url = $settings['provider']['url'];
   if ( valid_url($oauth_provider_url) ) {
     $request_token_url = $oauth_provider_url.'/oauth/request_token'; //To-DO read from admin form
     $access_token_url = $oauth_provider_url.'/oauth/access_token';
     $authorize_url = $oauth_provider_url.'/oauth/authorize';
   }
+  $consumer_key = $settings['provider']['consumer_key'];
+  $consumer_secret = $settings['provider']['consumer_secret'];
 
-  $consumer_key = variable_get('oauthclient_consumer_key');
-  $consumer_secret = variable_get('oauthclient_consumer_secret');
-
+  // start OAuth
   $oauth = new OAuth($consumer_key, $consumer_secret, OAUTH_SIG_METHOD_HMACSHA1, OAUTH_AUTH_TYPE_URI);
   $oauth->enableDebug(); // let you know when and why some request fails
 
-  if (empty($_SESSION['request_token_secret'])) {
+  $user = user_load($uid);
+  $user_wrapper = entity_metadata_wrapper('user', $user);
+  if (empty($user->{$settings['fields']['token_secret']})) {
     $request_token_array = $oauth->getRequestToken($request_token_url);
-    $_SESSION['request_token'] = $request_token_array['oauth_token'];
-    $_SESSION['request_token_secret'] = $request_token_array['oauth_token_secret'];
+    $user->{$settings['fields']['token_key']}->set($request_token_array['oauth_token']);
+    $user->{$settings['fields']['token_secret']}->set($request_token_array['oauth_token_secret']);
+    $user->save();
 
-    //mapping ids with request token
+    // mapping ids with request token
     $ids = array (
       'uid' => $uid,
       'udid' => $udid,
-      );
+    );
     variable_set($_SESSION['request_token'], $ids);
 
     // takes you to Drupal authorize page
     drupal_goto($authorize_url.'?oauth_token='.$_SESSION['request_token']);
-
-
   } else if (empty($_SESSION['access_token'])) { // continues below
     // PHP still needs the request token/secret to get the access token and secret
     $request_token_secret = $_SESSION['request_token_secret']; 
@@ -180,6 +194,7 @@ function oauthclient_3legged_oauth($uid, $udid) {
     $_SESSION['access_token_secret']= $access_token_info['oauth_token_secret'];
   }
 
+  /*
   if (isset ($_SESSION['access_token'])) {
     //Set access_token and consume service
     $access_token = $_SESSION['access_token'];
@@ -194,11 +209,11 @@ function oauthclient_3legged_oauth($uid, $udid) {
     $uid_to_load = $ids_to_load['uid'];
     $udid_to_load = $ids_to_load['udid'];
     //To-DO save the access token to user profile, after logged in with 2legged
-    if ($user = user_load($uid_to_load) ) 
+    if ($user = user_load($uid_to_load) )
       variable_set($user->uid.'_'.$udid_to_load.'_oauthsecret', $access_token_array);
     print_r($access_token_array);
     drupal_set_message('Saving access_token ok!');
-    
+
     // For ios: Execute DIOS schema
     $dios = convertCurrentURL();
     drupal_set_message($dios);
@@ -230,6 +245,7 @@ function oauthclient_3legged_oauth($uid, $udid) {
       echo $e->lastResponse; // {"errors":[{"message":"Could not authenticate you","code":32}]}
     }
   }
+   */
 }
 
 //Helper function to convery current url to dios:

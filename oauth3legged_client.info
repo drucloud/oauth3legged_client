@@ -1,6 +1,7 @@
 name = OAuth 3-legged-client
 description = Implements the OAuth client in 3-legged authentication.
 core = 7.x
+dependencies[] = entity
 
 files[] = oauth3legged_client.module
 files[] = oauth3legged_client.admin.inc
