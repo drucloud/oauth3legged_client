@@ -1,0 +1,106 @@
+<?php
+
+/**
+ * Implements hook_menu().
+ */
+function oauth3legged_client_menu() {
+  $items = array();
+
+  // Put your menu items here.
+  $items['admin/config/services/oauth3legged_client'] = array(
+    'title' => 'Mobingi Consumer Configuration',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('oauth3legged_client_admin'),
+    'access arguments' => array('administer mobingi consumer.'),
+    'file' => 'oauth3legged_client.admin.inc',
+    'type' => MENU_NORMAL_ITEM,
+  );
+
+  $items['admin/config/services/oauth3legged_client/settings'] = array(
+    'title' => 'Mobingi Consumer Configuration',
+    'type' => MENU_DEFAULT_LOCAL_TASK,
+    'weight' => 0,
+  );
+
+  $items['admin/config/services/oauth3legged_client/example'] = array(
+    'title' => 'Example',
+    'page arguments' => array('oauth3legged_client_example'),
+    'access arguments' => array('administer mobingi consumer.'),
+    'type' => MENU_LOCAL_TASK,
+    'weight' => 1,
+  );
+
+  $items['admin/config/services/oauth3legged_client/example/create_user'] = array(
+    'title' => 'Create user',
+    'page callback' => 'oauth3legged_client_create_user',
+    'access arguments' => array('mobingi create user'),
+    'type' => MENU_CALLBACK,
+  );
+
+  return $items;
+}
+
+/**
+ * Implements hook_permission().
+ */
+function oauth3legged_client_permission() {
+  return array(
+    'administer mobingi consumer' => array(
+        'title' => t('Administer Mobingi Consumer'),
+        'description' => t('Configuration for App Key and App Secret.'),
+      ),
+    'mobingi create user' => array(
+        'title' => t('Create Mobingi user'),
+        'description' => t('Remotely create Mobingi user.'),
+      ),
+  );
+}
+
+/**
+ * Create Mobingi user.
+ *
+ * @param $external_id is UDID in our case.
+ * @return An array of token key and secret
+ *   - token_key OAuth token key.
+ *   - token_secret OAuth token secret.
+ */
+function oauth3legged_client_create_user($name, $pass, $mail, $external_id = NULL) {
+  $settings = variable_get('oauth3legged_client', _oauth3legged_client_default());
+
+  $request_url = $settings['provider']['url'] . '/' . $settings['provider']['endpoint'] . '/user.json';
+
+  // 2-legged OAuth
+  try {
+    $oauth = new OAuth($settings['provider']['consumer_key'], $settings['provider']['consumer_secret'], OAUTH_SIG_METHOD_HMACSHA1, OAUTH_AUTH_TYPE_URI);
+    header('Content-Type: application/json');
+    $oauth->fetch($request_url, array(
+      'name' => $name . '_' . $external_id,
+      'pass' => $pass,
+      'mail' => $mail,
+    ), OAUTH_HTTP_METHOD_POST);
+    $response = $oauth->getLastResponse();
+    $json = json_decode($response);
+    return TRUE;
+  } catch(OAuthException $E) {
+    return FALSE;
+  }
+}
+
+/**
+ * Default settings value.
+ */
+function _oauth3legged_client_default() {
+  return array(
+    'fields' => array(
+      'token_key' => '',
+      'token_secret' => '',
+      'token_type' => '',
+    ),
+    'provider' => array(
+      'url' => 'http://server.mobingi.com',
+      'endpoint' => '',
+      'consumer_key' => '',
+      'consumer_secret' => '',
+    ),
+  );
+}
