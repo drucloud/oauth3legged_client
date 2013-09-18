@@ -27,7 +27,7 @@ function oauth3legged_client_menu() {
   );
 
   $items['admin/config/services/oauth3legged_client'] = array(
-    'title' => 'Oauth provider Consumer Configuration',
+    'title' => 'Oauth Consumer Configuration',
     'page callback' => 'drupal_get_form',
     'page arguments' => array('oauth3legged_client_admin'),
     'access arguments' => array('administer Oauth provider consumer.'),
