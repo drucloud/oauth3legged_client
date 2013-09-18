@@ -138,6 +138,7 @@ function _oauth3legged_client_default() {
       'endpoint' => '',
       'consumer_key' => '',
       'consumer_secret' => '',
+      'uri_schema' => '',
     ),
   );
 }
@@ -230,12 +231,12 @@ function oauthclient_3legged_oauth($uid, $external_id = NULL) {
     drupal_set_message('Saving access_token ok!');
 
     // For IOS: Execute DIOS schema
-    $dios = oauth3legged_client_convert_url($settings['provider']['uri']);
-    header("Location: ".$dios."success_dios");
-    //Verify the tokens
+    $uri_schema = oauth3legged_client_convert_url($settings['provider']['uri_schema']);
+    header("Location: " . $uri_schema . "3-legged.oauth.success");
+    // Verify the tokens
     $req_header = array(
-      'Accept'=>"application/json",
-      'format'=>"json"
+      'Accept' => "application/json",
+      'format' => "json"
     );
   }
 }

@@ -70,11 +70,11 @@ function oauth3legged_client_admin($form, &$form_state) {
     '#default_value' => $default['provider']['consumer_secret'],
   );
 
-  $form['oauth3legged_client']['provider']['uri'] = array(
+  $form['oauth3legged_client']['provider']['uri_schema'] = array(
     '#type' => 'textfield',
     '#title' => t('Custom URL schema'),
-    '#description' => t('Should config it both here and ios client or others dios://'),
-    '#default_value' => $default['provider']['uri'],
+    '#description' => t('Should config it both here and ios client or others, E.G. dios://'),
+    '#default_value' => $default['provider']['uri_schema'],
   );
   // validation
   $form['#validate'][] = 'oauth3legged_client_admin_validate';
