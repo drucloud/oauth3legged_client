@@ -28,7 +28,7 @@ To configure this module do the following:
 1. Go to People -> Permissions (admin/people/permissions) and find the relevant 
    module permissions underneath the "administer Oauth provider consumer." 
    section. If you are not logged in as user #1, you must give at least one role 
-   (probably the administrator role) the 'Administer privatemsg' permission to 
+   (probably the administrator role) the 'administer Oauth provider consumer' permission to 
    configure this module.
 2. Create required field in user profile according to configuration.
 3. Go to Configuration -> Oauth consumer configuration (admin/config/services/

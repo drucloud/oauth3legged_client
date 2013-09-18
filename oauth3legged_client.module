@@ -230,8 +230,7 @@ function oauthclient_3legged_oauth($uid, $external_id = NULL) {
     drupal_set_message('Saving access_token ok!');
 
     // For IOS: Execute DIOS schema
-    $dios = oauth3legged_client_convert_url();
-    drupal_set_message($dios);
+    $dios = oauth3legged_client_convert_url($settings['provider']['uri']);
     header("Location: ".$dios."success_dios");
     //Verify the tokens
     $req_header = array(
@@ -256,7 +255,7 @@ function oauth3legged_client_get_access($uid) {
 /**
  * Helper function to convery current url to dios:
  */
-function oauth3legged_client_convert_url() {
+function oauth3legged_client_convert_url($custom_schema) {
   $pageURL = 'http';
   if ($_SERVER["HTTPS"] == "on") {$pageURL .= "s";}
     $pageURL .= "://";
@@ -265,5 +264,5 @@ function oauth3legged_client_convert_url() {
   } else {
     $pageURL .= $_SERVER["SERVER_NAME"].$_SERVER["REQUEST_URI"];
   }
-  return str_replace("http://", "dios://", $pageURL);
+  return str_replace("http://", $custom_schema, $pageURL);
 }
