@@ -240,15 +240,35 @@ function oauthclient_3legged_oauth($uid, $external_id = NULL) {
 }
 
 /**
- * API function: get access token and secret
+ * API function: get oauth object
  *
- * @param $uid
- *    User ID.
+ * @param $user
+ *    User object.
  * @return An array with following key.
  *    - access_token OAuth access token.
  *    - access_token_secret OAuth access token secret.
  */
-function oauth3legged_client_get_access($uid) {
+function oauth3legged_client_get_oauth_object($user) {
+
+  $settings = variable_get('oauth3legged_client', _oauth3legged_client_default());
+  $consumer_key = $settings['provider']['consumer_key'];
+  $consumer_secret = $settings['provider']['consumer_secret'];
+
+  $user_wrapper = entity_metadata_wrapper('user', $user);
+ 
+  if ( $user_wrapper->{$settings['fields']['token_type']}->value() == 0) {
+    $tokensecret['access_token'] = $user_wrapper->{$settings['fields']['token_key']}->value();
+    $tokensecret['access_token_secret'] = $user_wrapper->{$settings['fields']['token_secret']}->value();
+  }
+
+  $oauth = new OAuth($consumer_key, $consumer_secret, OAUTH_SIG_METHOD_HMACSHA1, OAUTH_AUTH_TYPE_URI);
+  $oauth->setToken($tokensecret['access_token'],$tokensecret['access_token_secret']);
+
+  $oauthinfo['oauth'] = $oauth;
+  $oauthinfo['url'] = $settings['provider']['url'];
+  $oauthinfo['endpoint'] = $settings['provider']['endpoint'];
+
+  return $oauthinfo;
 }
 
 /**
