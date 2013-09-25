@@ -34,7 +34,6 @@ function oauth3legged_client_admin($form, &$form_state) {
   $form['oauth3legged_client']['fields']['token_type'] = array(
     '#type' => 'textfield',
     '#title' => t('Token type'),
-    '#description' => t('1 for request token.'),
     '#default_value' => $default['fields']['token_type'],
   );
 
